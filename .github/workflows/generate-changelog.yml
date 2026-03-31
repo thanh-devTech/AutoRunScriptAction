@@ -5,20 +5,20 @@ on:
     branches:
       - dev
     paths:
-      - 'plug.php'
+      - "plug.php"
   pull_request:
     branches:
       - dev
     types:
       - closed
     paths:
-      - 'plug.php'
+      - "plug.php"
 
 jobs:
   generate-changelog:
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true || github.event_name == 'push'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -29,17 +29,24 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"
+
+      - name: Debug - Check git history
+        run: |
+          echo "Current branch: $(git branch --show-current)"
+          echo "Git log for plug.php:"
+          git log --oneline -20 -- plug.php || echo "No history found"
+          echo "Checking for Version: in plug.php history:"
+          git log -p --follow -- plug.php | grep -A2 -B2 "Version:" | head -50 || echo "No Version changes found"
 
       - name: Run changelog generator
-        working-directory: ./run_scripts
-        run: python generate_changelog.py
+        run: python run_scripts/generate_changelog.py
 
       - name: Commit and push changelog
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
+
           if git diff --quiet log.txt; then
             echo "No changes to commit"
           else
