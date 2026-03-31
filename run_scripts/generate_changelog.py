@@ -106,8 +106,8 @@ def get_release_boundaries() -> list[dict[str, str]]:
     return releases
 
 
-def get_first_parent_order() -> list[str]:
-    output = run_git("log", "--first-parent", "--reverse", "--format=%H", "HEAD")
+def get_reachable_order() -> list[str]:
+    output = run_git("rev-list", "--reverse", "--topo-order", "HEAD")
     return [line.strip() for line in output.splitlines() if line.strip()]
 
 
@@ -251,10 +251,10 @@ def main() -> int:
             return 1
         print(f"✅ Found {len(releases)} releases from git tags", file=sys.stderr)
 
-    first_parent_order = get_first_parent_order()
-    first_parent_index = {commit_hash: index for index, commit_hash in enumerate(first_parent_order)}
-    releases = [release for release in releases if release["hash"] in first_parent_index]
-    releases.sort(key=lambda release: first_parent_index[release["hash"]])
+    reachable_order = get_reachable_order()
+    reachable_index = {commit_hash: index for index, commit_hash in enumerate(reachable_order)}
+    releases = [release for release in releases if release["hash"] in reachable_index]
+    releases.sort(key=lambda release: reachable_index[release["hash"]])
 
     unique_releases: list[dict[str, str]] = []
     seen_versions: set[str] = set()
@@ -266,7 +266,7 @@ def main() -> int:
     releases = unique_releases
 
     if not releases:
-        print("❌ No release boundaries found on the current branch first-parent history", file=sys.stderr)
+        print("❌ No release boundaries found on the current branch history", file=sys.stderr)
         return 1
 
     min_date = parse_release_date(MIN_DATE)
