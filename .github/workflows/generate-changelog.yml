@@ -24,33 +24,49 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          ref: dev
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.11"
 
-      - name: Debug - Check git history
+      - name: Debug - Full git history
         run: |
-          echo "Current branch: $(git branch --show-current)"
-          echo "Git log for plug.php:"
-          git log --oneline -20 -- plug.php || echo "No history found"
-          echo "Checking for Version: in plug.php history:"
-          git log -p --follow -- plug.php | grep -A2 -B2 "Version:" | head -50 || echo "No Version changes found"
+          echo "=== Current branch ==="
+          git branch -a
+          git branch --show-current
+
+          echo "=== First-parent history ==="
+          git log --first-parent --oneline -30
+
+          echo "=== Version changes in plug.php (all) ==="
+          git log -p -- plug.php 2>/dev/null | grep -B5 "Version:" | head -50 || echo "No changes found"
+
+          echo "=== plug.php on dev branch ==="
+          git show origin/dev:plug.php | head -15 || echo "Cannot show"
 
       - name: Run changelog generator
-        run: python run_scripts/generate_changelog.py
+        run: |
+          cd /home/runner/work
+          echo "Working directory: $(pwd)"
+          cd "$(find . -name 'AutoRunScriptAction' -o -name 'ci-data-works-arc' | head -1)"
+          echo "Plugin directory: $(pwd)"
+          python run_scripts/generate_changelog.py
 
       - name: Commit and push changelog
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
+          if [ ! -f log.txt ]; then
+            echo "No log.txt generated"
+            exit 0
+          fi
+
           if git diff --quiet log.txt; then
             echo "No changes to commit"
           else
             git add log.txt
             git commit -m "chore: auto-generate changelog"
-            git push
+            git push origin $(git branch --show-current)
           fi
