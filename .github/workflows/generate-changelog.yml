@@ -1,0 +1,49 @@
+name: Generate Changelog
+
+on:
+  push:
+    branches:
+      - dev
+    paths:
+      - 'plug.php'
+  pull_request:
+    branches:
+      - dev
+    types:
+      - closed
+    paths:
+      - 'plug.php'
+
+jobs:
+  generate-changelog:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Run changelog generator
+        working-directory: ./run_scripts
+        run: python generate_changelog.py
+
+      - name: Commit and push changelog
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if git diff --quiet log.txt; then
+            echo "No changes to commit"
+          else
+            git add log.txt
+            git commit -m "chore: auto-generate changelog"
+            git push
+          fi
