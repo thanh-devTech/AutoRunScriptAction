@@ -16,7 +16,7 @@ REPO_ROOT = SCRIPT_DIR.parent
 
 PLUGIN_FILE = "plug.php"
 DEFAULT_OUTPUT = "log.txt"
-MIN_VERSION = "2.4.7"
+MIN_VERSION = "1.0.0"
 MIN_DATE = "2026-03-27"
 
 VERSION_LINE_RE = re.compile(r"^\+Version:\s*([0-9][0-9A-Za-z._-]*)\s*$")
