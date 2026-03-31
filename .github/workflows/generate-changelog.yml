@@ -6,27 +6,22 @@ on:
       - dev
     paths:
       - "plug.php"
-  pull_request:
-    branches:
-      - dev
-    types:
-      - closed
-    paths:
-      - "plug.php"
+
+permissions:
+  contents: write
 
 jobs:
   generate-changelog:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true || github.event_name == 'push'
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
@@ -46,14 +41,13 @@ jobs:
           git show origin/dev:plug.php | head -15 || echo "Cannot show"
 
       - name: Run changelog generator
+        working-directory: ${{ github.workspace }}
         run: |
-          cd /home/runner/work
-          echo "Working directory: $(pwd)"
-          cd "$(find . -name 'AutoRunScriptAction' -o -name 'ci-data-works-arc' | head -1)"
-          echo "Plugin directory: $(pwd)"
-          python run_scripts/generate_changelog.py
+          echo "Repository directory: $(pwd)"
+          python3 run_scripts/generate_changelog.py
 
       - name: Commit and push changelog
+        working-directory: ${{ github.workspace }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
@@ -63,10 +57,12 @@ jobs:
             exit 0
           fi
 
-          if git diff --quiet log.txt; then
+          file_status="$(git status --porcelain -- log.txt)"
+
+          if [ -z "$file_status" ]; then
             echo "No changes to commit"
           else
             git add log.txt
             git commit -m "chore: auto-generate changelog"
-            git push origin $(git branch --show-current)
+            git push origin HEAD:${{ github.ref_name }}
           fi
