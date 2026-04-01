@@ -9,5 +9,6 @@ Author URI: https://example.com
 License: GPL2
 */
 
+
 defined('ABSPATH') || exit;
 defined('ABSPATH2') || exit;
