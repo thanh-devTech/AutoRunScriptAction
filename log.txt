@@ -1,0 +1,24 @@
+= 5.5.7.62 - 2026-04-01 =
+* Update - Chore: auto-generate changelog.
+* Update - Bump: version 5.5.7.62.
+
+= 5.5.7.61 - 2026-03-31 =
+* Update - Bump: version 5.5.7.57.
+* Update - Bump: version 5.5.7.59.
+* Update - Bump: version 5.5.7.61.
+
+= 5.5.7.56 - 2026-03-31 =
+* Update - Bump: version 5.5.7.56.
+
+= 5.5.7.55 - 2026-03-31 =
+* Add - Code first.
+* Update - Plug.php.
+* Add - 2 code.
+* Update - Pu s.
+* Update - 22.
+* Update - 222.
+* Update - Release: bump plugin version to 5.5.9.
+* Update - Pop2.
+* Update - Sssc ver2.
+* Update - Bump: version 5.5.7.54.
+* Update - Bump: version 5.5.7.55.

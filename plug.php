@@ -1,5 +1,14 @@
-Test a1
+<?php
+/*
+Plugin Name: Auto Run Script Action
+Plugin URI: https://example.com
+Description: Automatically run scripts on GitHub merge
+Version: 5.5.7.62
+Author: Your Name
+Author URI: https://example.com
+License: GPL2
+*/
 
-Dev2
 
-ádasd
+defined('ABSPATH') || exit;
+defined('ABSPATH2') || exit;

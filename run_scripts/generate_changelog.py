@@ -106,9 +106,41 @@ def get_release_boundaries() -> list[dict[str, str]]:
     return releases
 
 
-def get_first_parent_order() -> list[str]:
-    output = run_git("log", "--first-parent", "--reverse", "--format=%H", "HEAD")
+def get_reachable_order() -> list[str]:
+    output = run_git("rev-list", "--reverse", "--topo-order", "HEAD")
     return [line.strip() for line in output.splitlines() if line.strip()]
+
+
+def get_releases_from_tags() -> list[dict[str, str]]:
+    """Fallback: Get releases from git tags (v*.*.*)"""
+    try:
+        output = run_git("tag", "-l", "v*", "--format=%(refname:short)%09%(creatordate:short)%09%(subject)")
+        releases: list[dict[str, str]] = []
+        
+        for line in output.splitlines():
+            if not line.strip():
+                continue
+            parts = line.split("\t", 2)
+            if len(parts) >= 2:
+                tag = parts[0]
+                date = parts[1] if len(parts) > 1 else "2026-01-01"
+                version = tag.lstrip("v")
+                
+                try:
+                    hash_output = run_git("rev-list", "-n", "1", tag)
+                    commit_hash = hash_output.strip()
+                    releases.append({
+                        "hash": commit_hash,
+                        "date": date,
+                        "subject": f"Release {version}",
+                        "version": version,
+                    })
+                except RuntimeError:
+                    continue
+        
+        return releases
+    except RuntimeError:
+        return []
 
 
 def subject_type(subject: str) -> str:
@@ -205,15 +237,24 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    # Try to get releases from Version: changes first
     releases = get_release_boundaries()
+    fallback_tags = False
+    
     if not releases:
-        print("No release boundaries found from Version: changes in plug.php", file=sys.stderr)
-        return 1
+        print("⚠️  No release boundaries found from Version: changes in plug.php, trying git tags...", file=sys.stderr)
+        releases = get_releases_from_tags()
+        fallback_tags = True
+        
+        if not releases:
+            print("❌ No releases found from Version: changes or git tags", file=sys.stderr)
+            return 1
+        print(f"✅ Found {len(releases)} releases from git tags", file=sys.stderr)
 
-    first_parent_order = get_first_parent_order()
-    first_parent_index = {commit_hash: index for index, commit_hash in enumerate(first_parent_order)}
-    releases = [release for release in releases if release["hash"] in first_parent_index]
-    releases.sort(key=lambda release: first_parent_index[release["hash"]])
+    reachable_order = get_reachable_order()
+    reachable_index = {commit_hash: index for index, commit_hash in enumerate(reachable_order)}
+    releases = [release for release in releases if release["hash"] in reachable_index]
+    releases.sort(key=lambda release: reachable_index[release["hash"]])
 
     unique_releases: list[dict[str, str]] = []
     seen_versions: set[str] = set()
@@ -225,7 +266,7 @@ def main() -> int:
     releases = unique_releases
 
     if not releases:
-        print("No release boundaries found on the current branch first-parent history", file=sys.stderr)
+        print("❌ No release boundaries found on the current branch history", file=sys.stderr)
         return 1
 
     min_date = parse_release_date(MIN_DATE)
@@ -240,11 +281,17 @@ def main() -> int:
         previous_hash = releases[index - 1]["hash"] if index > 0 else None
         selected_releases.append((release, previous_hash))
 
+    if not selected_releases:
+        print(f"⚠️  No releases matching filters (version > {MIN_VERSION}, date > {MIN_DATE})", file=sys.stderr)
+        output_path = REPO_ROOT / args.output
+        output_path.write_text("", encoding="utf-8")
+        return 0
+
     content = build_changelog(selected_releases)
     output_path = REPO_ROOT / args.output
     output_path.write_text(content, encoding="utf-8")
     print(
-        f"Wrote {len(selected_releases)} releases to {output_path} "
+        f"✅ Wrote {len(selected_releases)} releases to {output_path} "
         f"(version > {MIN_VERSION}, date > {MIN_DATE})"
     )
     return 0

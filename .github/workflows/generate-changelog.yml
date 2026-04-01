@@ -5,45 +5,64 @@ on:
     branches:
       - dev
     paths:
-      - 'plug.php'
-  pull_request:
-    branches:
-      - dev
-    types:
-      - closed
-    paths:
-      - 'plug.php'
+      - "plug.php"
+
+permissions:
+  contents: write
 
 jobs:
   generate-changelog:
     runs-on: ubuntu-latest
-    if: github.event.pull_request.merged == true || github.event_name == 'push'
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: dev
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
+
+      - name: Debug - Full git history
+        run: |
+          echo "=== Current branch ==="
+          git branch -a
+          git branch --show-current
+
+          echo "=== First-parent history ==="
+          git log --first-parent --oneline -30
+
+          echo "=== Version changes in plug.php (all) ==="
+          git log -p -- plug.php 2>/dev/null | grep -B5 "Version:" | head -50 || echo "No changes found"
+
+          echo "=== plug.php on dev branch ==="
+          git show origin/dev:plug.php | head -15 || echo "Cannot show"
 
       - name: Run changelog generator
-        working-directory: ./run_scripts
-        run: python generate_changelog.py
+        working-directory: ${{ github.workspace }}
+        run: |
+          echo "Repository directory: $(pwd)"
+          python3 run_scripts/generate_changelog.py
 
       - name: Commit and push changelog
+        working-directory: ${{ github.workspace }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          
-          if git diff --quiet log.txt; then
+
+          if [ ! -f log.txt ]; then
+            echo "No log.txt generated"
+            exit 0
+          fi
+
+          file_status="$(git status --porcelain -- log.txt)"
+
+          if [ -z "$file_status" ]; then
             echo "No changes to commit"
           else
             git add log.txt
             git commit -m "chore: auto-generate changelog"
-            git push
+            git push origin HEAD:${{ github.ref_name }}
           fi
