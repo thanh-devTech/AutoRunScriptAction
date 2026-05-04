@@ -1,0 +1,3 @@
+[submodule "ci-auto-log"]
+	path = ci-auto-log
+	url = https://github.com/Ignite-Medical-Tech/ci-auto-log.git
