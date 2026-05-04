@@ -1,5 +1,4 @@
 = 5.5.7.62 - 2026-04-01 =
-* Update - Chore: auto-generate changelog.
 * Update - Bump: version 5.5.7.62.
 
 = 5.5.7.61 - 2026-03-31 =
