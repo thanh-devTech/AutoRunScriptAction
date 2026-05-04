@@ -6,6 +6,11 @@ on:
       - dev
     paths:
       - "plug.php"
+      - ".gitmodules"
+      - "ci-auto-log"
+      - "ci-auto-log/**"
+      - ".github/workflows/generate-changelog.yml"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -19,13 +24,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Debug - Full git history
+      - name: Debug git history
         run: |
           echo "=== Current branch ==="
           git branch -a
@@ -34,35 +40,44 @@ jobs:
           echo "=== First-parent history ==="
           git log --first-parent --oneline -30
 
-          echo "=== Version changes in plug.php (all) ==="
+          echo "=== Version changes in plug.php ==="
           git log -p -- plug.php 2>/dev/null | grep -B5 "Version:" | head -50 || echo "No changes found"
 
-          echo "=== plug.php on dev branch ==="
-          git show origin/dev:plug.php | head -15 || echo "Cannot show"
+          echo "=== Submodules ==="
+          git submodule status --recursive
 
-      - name: Run changelog generator
-        working-directory: ${{ github.workspace }}
+      - name: Create ci-auto-log config
         run: |
-          echo "Repository directory: $(pwd)"
-          python3 run_scripts/generate_changelog.py
+          cat > ci-auto-log/config.ini <<'EOF'
+          [changelog]
+          PLUGIN_FILE = plug.php
+          OUTPUT_FILE = log.txt
+          MIN_VERSION = 2.4.7
+          MIN_DATE = 2026-03-27
+          EOF
+
+      - name: Generate changelog
+        run: |
+          python3 ci-auto-log/generate_changelog.py
 
       - name: Commit and push changelog
-        working-directory: ${{ github.workspace }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
 
-          if [ ! -f log.txt ]; then
-            echo "No log.txt generated"
+          generated_file="$(python3 ci-auto-log/generate_changelog.py --print-output-file)"
+
+          if [ ! -f "$generated_file" ]; then
+            echo "No $generated_file generated"
             exit 0
           fi
 
-          file_status="$(git status --porcelain -- log.txt)"
+          file_status="$(git status --porcelain -- "$generated_file")"
 
           if [ -z "$file_status" ]; then
             echo "No changes to commit"
           else
-            git add log.txt
+            git add "$generated_file"
             git commit -m "chore: auto-generate changelog"
             git push origin HEAD:${{ github.ref_name }}
           fi
